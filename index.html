@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduFlow Pro - Smart Student Organizer</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(226, 232, 240, 0.8); }
+        .active-nav { background-color: #4f46e5; color: white; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .animate-pulse-soft { animation: pulse-soft 2s infinite; }
+    </style>
+</head>
+<body class="text-slate-900 overflow-hidden">
+
+    <!-- Suara Alarm & Notifikasi -->
+    <audio id="alarmSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar Desktop -->
+        <aside class="hidden lg:flex w-72 bg-white border-r border-slate-200 flex-col p-6 space-y-2 z-30">
+            <div class="flex items-center space-x-3 px-2 mb-10 mt-2">
+                <div class="bg-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-200">
+                    <i data-lucide="graduation-cap" class="text-white w-6 h-6"></i>
+                </div>
+                <span class="font-bold text-2xl tracking-tight">EduFlow<span class="text-indigo-600">Pro</span></span>
+            </div>
+            
+            <nav class="space-y-2">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active-nav flex items-center space-x-3 w-full px-4 py-3.5 rounded-2xl transition-all group">
+                    <i data-lucide="layout-grid" class="w-5 h-5"></i>
+                    <span class="font-semibold text-sm">Dashboard</span>
+                </button>
+                <button onclick="switchTab('tasks')" id="nav-tasks" class="nav-btn flex items-center space-x-3 w-full px-4 py-3.5 rounded-2xl transition-all text-slate-500 hover:bg-slate-50">
+                    <i data-lucide="check-square" class="w-5 h-5"></i>
+                    <span class="font-semibold text-sm">Tugas & Deadline</span>
+                </button>
+                <button onclick="switchTab('schedule')" id="nav-schedule" class="nav-btn flex items-center space-x-3 w-full px-4 py-3.5 rounded-2xl transition-all text-slate-500 hover:bg-slate-50">
+                    <i data-lucide="calendar-days" class="w-5 h-5"></i>
+                    <span class="font-semibold text-sm">Jadwal Kelas</span>
+                </button>
+                <button onclick="switchTab('timer')" id="nav-timer" class="nav-btn flex items-center space-x-3 w-full px-4 py-3.5 rounded-2xl transition-all text-slate-500 hover:bg-slate-50">
+                    <i data-lucide="timer" class="w-5 h-5"></i>
+                    <span class="font-semibold text-sm">Fokus Timer</span>
+                </button>
+            </nav>
+
+            <div class="mt-auto p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="bell-ring" class="w-4 h-4 text-indigo-600 animate-pulse-soft"></i>
+                    <span class="text-[10px] font-bold uppercase text-indigo-600 tracking-wider">Notifikasi Aktif</span>
+                </div>
+                <p class="text-[11px] text-indigo-800 leading-relaxed">Pengingat tugas & jadwal akan muncul secara otomatis.</p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto pt-8 pb-24 lg:pb-8 lg:px-12 px-6 no-scrollbar">
+            <div class="max-w-5xl mx-auto">
+                
+                <!-- Tab: Dashboard -->
+                <section id="tab-dashboard" class="tab-content space-y-8 animate-in fade-in duration-500">
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <h1 class="text-3xl font-black text-slate-800">Halo, Pelajar Produktif! 🚀</h1>
+                            <p class="text-slate-500" id="current-date-display"></p>
+                        </div>
+                        <div class="hidden md:block text-right">
+                            <span id="notif-badge" class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">Izin Notifikasi Diperlukan</span>
+                        </div>
+                    </div>
+
+                    <!-- PWA Download Helper (Hidden by default) -->
+                    <div id="pwa-install-banner" class="hidden glass-card p-6 rounded-[32px] bg-indigo-600 text-white border-none flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-4 text-center md:text-left">
+                            <i data-lucide="smartphone" class="w-10 h-10"></i>
+                            <div>
+                                <h4 class="font-bold">Pasang EduFlow di HP</h4>
+                                <p class="text-sm text-indigo-100">Akses lebih cepat & offline seperti aplikasi asli!</p>
+                            </div>
+                        </div>
+                        <button id="pwa-install-btn" class="bg-white text-indigo-600 px-6 py-3 rounded-2xl font-bold text-sm shadow-xl">Instal Sekarang</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="glass-card p-6 rounded-[32px] shadow-sm border-l-4 border-indigo-500">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Tugas Besok</p>
+                            <h3 id="dash-urgent-tasks" class="text-2xl font-black text-slate-800">0</h3>
+                        </div>
+                        <div class="glass-card p-6 rounded-[32px] shadow-sm border-l-4 border-amber-500">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Kelas Besok</p>
+                            <h3 id="dash-tomorrow-classes" class="text-2xl font-black text-slate-800">0</h3>
+                        </div>
+                        <div class="glass-card p-6 rounded-[32px] shadow-sm border-l-4 border-emerald-500">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Fokus Mingguan</p>
+                            <h3 id="dash-weekly-focus" class="text-2xl font-black text-slate-800">0h</h3>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="space-y-4">
+                            <h2 class="text-xl font-bold flex items-center gap-2"><i data-lucide="alarm-clock" class="text-rose-500"></i> Prioritas Segera</h2>
+                            <div id="urgent-list" class="space-y-3">
+                                <!-- Urgent items populated by JS -->
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <h2 class="text-xl font-bold flex items-center gap-2"><i data-lucide="calendar" class="text-indigo-500"></i> Jadwal Besok</h2>
+                            <div id="tomorrow-schedule-list" class="space-y-3">
+                                <!-- Tomorrow schedule populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tab: Tasks -->
+                <section id="tab-tasks" class="tab-content hidden space-y-6 animate-in slide-in-from-bottom-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-black">Daftar Tugas</h2>
+                        <button onclick="openModal('taskModal')" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah
+                        </button>
+                    </div>
+                    <div id="full-task-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </section>
+
+                <!-- Tab: Schedule -->
+                <section id="tab-schedule" class="tab-content hidden space-y-6 animate-in slide-in-from-bottom-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-black">Jadwal Kelas Mingguan</h2>
+                        <button onclick="openModal('scheduleModal')" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah Jadwal
+                        </button>
+                    </div>
+                    
+                    <div class="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
+                        <!-- Day Filters -->
+                        <button onclick="filterSchedule('Senin')" class="day-filter px-6 py-2 rounded-full bg-indigo-600 text-white text-sm font-bold whitespace-nowrap">Senin</button>
+                        <button onclick="filterSchedule('Selasa')" class="day-filter px-6 py-2 rounded-full bg-white border text-slate-500 text-sm font-bold whitespace-nowrap">Selasa</button>
+                        <button onclick="filterSchedule('Rabu')" class="day-filter px-6 py-2 rounded-full bg-white border text-slate-500 text-sm font-bold whitespace-nowrap">Rabu</button>
+                        <button onclick="filterSchedule('Kamis')" class="day-filter px-6 py-2 rounded-full bg-white border text-slate-500 text-sm font-bold whitespace-nowrap">Kamis</button>
+                        <button onclick="filterSchedule('Jumat')" class="day-filter px-6 py-2 rounded-full bg-white border text-slate-500 text-sm font-bold whitespace-nowrap">Jumat</button>
+                        <button onclick="filterSchedule('Sabtu')" class="day-filter px-6 py-2 rounded-full bg-white border text-slate-500 text-sm font-bold whitespace-nowrap">Sabtu</button>
+                    </div>
+
+                    <div id="schedule-list" class="space-y-3">
+                        <!-- Schedules go here -->
+                    </div>
+                </section>
+
+                <!-- Tab: Timer -->
+                <section id="tab-timer" class="tab-content hidden flex flex-col items-center justify-center min-h-[60vh] py-6">
+                    <div class="glass-card p-12 rounded-[48px] text-center max-w-sm w-full shadow-xl">
+                        <div id="timerDisplay" class="text-7xl font-black mb-8 tabular-nums">25:00</div>
+                        <div class="flex gap-4">
+                            <button id="timerToggle" onclick="toggleTimer()" class="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100">Mulai Sesi</button>
+                            <button onclick="resetTimer()" class="p-4 bg-slate-100 rounded-2xl"><i data-lucide="rotate-ccw"></i></button>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+
+        <!-- Mobile Nav -->
+        <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white border-t flex items-center justify-around px-4 z-40">
+            <button onclick="switchTab('dashboard')" class="text-indigo-600 flex flex-col items-center"><i data-lucide="layout-grid" class="w-6 h-6"></i></button>
+            <button onclick="switchTab('tasks')" class="text-slate-400 flex flex-col items-center"><i data-lucide="check-square" class="w-6 h-6"></i></button>
+            <button onclick="switchTab('schedule')" class="text-slate-400 flex flex-col items-center"><i data-lucide="calendar-days" class="w-6 h-6"></i></button>
+            <button onclick="switchTab('timer')" class="text-slate-400 flex flex-col items-center"><i data-lucide="timer" class="w-6 h-6"></i></button>
+        </nav>
+    </div>
+
+    <!-- Modals -->
+    <div id="taskModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-[32px] p-8 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-6">Tambah Tugas Baru</h3>
+            <div class="space-y-4">
+                <input id="inTaskTitle" type="text" placeholder="Nama Tugas" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500">
+                <input id="inTaskDate" type="date" class="w-full p-4 bg-slate-50 rounded-2xl outline-none">
+                <div class="flex gap-4">
+                    <button onclick="closeModal('taskModal')" class="flex-1 py-4 font-bold text-slate-500">Batal</button>
+                    <button onclick="saveTask()" class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold">Simpan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="scheduleModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-[32px] p-8 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-6">Tambah Jadwal Kelas</h3>
+            <div class="space-y-4">
+                <input id="inSchedTitle" type="text" placeholder="Mata Pelajaran" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500">
+                <div class="grid grid-cols-2 gap-4">
+                    <select id="inSchedDay" class="p-4 bg-slate-50 rounded-2xl outline-none">
+                        <option>Senin</option><option>Selasa</option><option>Rabu</option><option>Kamis</option><option>Jumat</option><option>Sabtu</option>
+                    </select>
+                    <input id="inSchedTime" type="time" class="p-4 bg-slate-50 rounded-2xl outline-none">
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="closeModal('scheduleModal')" class="flex-1 py-4 font-bold text-slate-500">Batal</button>
+                    <button onclick="saveSchedule()" class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold">Simpan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Utama -->
+    <script>
+        // --- Core State ---
+        let state = {
+            tasks: JSON.parse(localStorage.getItem('ef_tasks')) || [],
+            schedules: JSON.parse(localStorage.getItem('ef_schedules')) || [],
+            settings: { focusMinutes: 0, sessions: 0 },
+            activeDay: 'Senin'
+        };
+
+        // --- Init ---
+        window.onload = () => {
+            lucide.createIcons();
+            updateDateDisplay();
+            requestNotificationPermission();
+            renderAll();
+            startBackgroundCheck();
+            initPWA();
+        };
+
+        // --- PWA Helper ---
+        let deferredPrompt;
+        function initPWA() {
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                document.getElementById('pwa-install-banner').classList.remove('hidden');
+            });
+
+            document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        document.getElementById('pwa-install-banner').classList.add('hidden');
+                    }
+                    deferredPrompt = null;
+                }
+            });
+        }
+
+        function requestNotificationPermission() {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    const badge = document.getElementById('notif-badge');
+                    if (permission === "granted") {
+                        badge.innerText = "Notifikasi Aktif";
+                        badge.className = "bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold";
+                    }
+                });
+            }
+        }
+
+        function updateDateDisplay() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('current-date-display').innerText = new Date().toLocaleDateString('id-ID', options);
+        }
+
+        // --- Navigation ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active-nav'));
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if(activeBtn) activeBtn.classList.add('active-nav');
+            
+            renderAll();
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        // --- Task Logic ---
+        function saveTask() {
+            const title = document.getElementById('inTaskTitle').value;
+            const date = document.getElementById('inTaskDate').value;
+            if (!title || !date) return;
+
+            state.tasks.push({ id: Date.now(), title, date, done: false });
+            saveToLocal();
+            closeModal('taskModal');
+            renderAll();
+            document.getElementById('inTaskTitle').value = '';
+        }
+
+        function toggleTask(id) {
+            state.tasks = state.tasks.map(t => t.id === id ? {...t, done: !t.done} : t);
+            saveToLocal();
+            renderAll();
+        }
+
+        function deleteTask(id) {
+            state.tasks = state.tasks.filter(t => t.id !== id);
+            saveToLocal();
+            renderAll();
+        }
+
+        // --- Schedule Logic ---
+        function saveSchedule() {
+            const title = document.getElementById('inSchedTitle').value;
+            const day = document.getElementById('inSchedDay').value;
+            const time = document.getElementById('inSchedTime').value;
+            if (!title || !time) return;
+
+            state.schedules.push({ id: Date.now(), title, day, time });
+            saveToLocal();
+            closeModal('scheduleModal');
+            renderAll();
+            document.getElementById('inSchedTitle').value = '';
+        }
+
+        function deleteSchedule(id) {
+            state.schedules = state.schedules.filter(s => s.id !== id);
+            saveToLocal();
+            renderAll();
+        }
+
+        function filterSchedule(day) {
+            state.activeDay = day;
+            document.querySelectorAll('.day-filter').forEach(btn => {
+                if(btn.innerText === day) {
+                    btn.classList.replace('bg-white', 'bg-indigo-600');
+                    btn.classList.replace('text-slate-500', 'text-white');
+                } else {
+                    btn.classList.replace('bg-indigo-600', 'bg-white');
+                    btn.classList.replace('text-white', 'text-slate-500');
+                }
+            });
+            renderSchedules();
+        }
+
+        // --- Persistence ---
+        function saveToLocal() {
+            localStorage.setItem('ef_tasks', JSON.stringify(state.tasks));
+            localStorage.setItem('ef_schedules', JSON.stringify(state.schedules));
+        }
+
+        // --- Rendering ---
+        function renderAll() {
+            renderDashboard();
+            renderTasks();
+            renderSchedules();
+            lucide.createIcons();
+        }
+
+        function renderDashboard() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toISOString().split('T')[0];
+            const tomorrowDay = tomorrow.toLocaleDateString('id-ID', { weekday: 'long' });
+
+            const urgentTasks = state.tasks.filter(t => !t.done && t.date === tomorrowStr);
+            const tomorrowSched = state.schedules.filter(s => s.day === tomorrowDay);
+
+            document.getElementById('dash-urgent-tasks').innerText = urgentTasks.length;
+            document.getElementById('dash-tomorrow-classes').innerText = tomorrowSched.length;
+
+            const urgentDiv = document.getElementById('urgent-list');
+            urgentDiv.innerHTML = state.tasks.filter(t => !t.done).slice(0, 3).map(t => `
+                <div class="p-4 bg-white border border-slate-100 rounded-2xl flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full bg-rose-500"></div>
+                    <span class="font-bold text-sm flex-1">${t.title}</span>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">${t.date}</span>
+                </div>
+            `).join('') || '<p class="text-sm text-slate-400 italic">Tidak ada tugas mendesak.</p>';
+
+            const schedDiv = document.getElementById('tomorrow-schedule-list');
+            schedDiv.innerHTML = tomorrowSched.map(s => `
+                <div class="p-4 bg-white border border-slate-100 rounded-2xl flex items-center gap-3">
+                    <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-xs">${s.time}</div>
+                    <span class="font-bold text-sm">${s.title}</span>
+                </div>
+            `).join('') || '<p class="text-sm text-slate-400 italic">Libur besok!</p>';
+        }
+
+        function renderTasks() {
+            const list = document.getElementById('full-task-list');
+            list.innerHTML = state.tasks.map(t => `
+                <div class="p-5 glass-card rounded-3xl flex items-center justify-between group">
+                    <div class="flex items-center gap-4">
+                        <button onclick="toggleTask(${t.id})" class="text-indigo-600">
+                            <i data-lucide="${t.done ? 'check-circle' : 'circle'}" class="w-6 h-6"></i>
+                        </button>
+                        <div>
+                            <p class="font-bold ${t.done ? 'line-through text-slate-400' : ''}">${t.title}</p>
+                            <p class="text-xs text-slate-400">${t.date}</p>
+                        </div>
+                    </div>
+                    <button onclick="deleteTask(${t.id})" class="opacity-0 group-hover:opacity-100 text-rose-500 transition-all">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function renderSchedules() {
+            const list = document.getElementById('schedule-list');
+            const filtered = state.schedules.filter(s => s.day === state.activeDay);
+            list.innerHTML = filtered.map(s => `
+                <div class="p-5 bg-white border border-slate-100 rounded-3xl flex items-center gap-6">
+                    <div class="text-2xl font-black text-indigo-600">${s.time}</div>
+                    <div class="flex-1">
+                        <p class="font-bold text-lg">${s.title}</p>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">${s.day}</p>
+                    </div>
+                    <button onclick="deleteSchedule(${s.id})" class="text-slate-300 hover:text-rose-500"><i data-lucide="x-circle"></i></button>
+                </div>
+            `).join('') || '<div class="text-center py-20 text-slate-400">Belum ada jadwal untuk hari ini.</div>';
+            lucide.createIcons();
+        }
+
+        // --- Notification Engine ---
+        function startBackgroundCheck() {
+            setInterval(() => {
+                const now = new Date();
+                const todayStr = now.toISOString().split('T')[0];
+                const dayName = now.toLocaleDateString('id-ID', { weekday: 'long' });
+                const timeStr = now.toTimeString().slice(0, 5);
+
+                state.schedules.forEach(s => {
+                    if (s.day === dayName && s.time === timeStr) {
+                        sendNotification("Jadwal Kelas!", `Sekarang waktunya: ${s.title}`);
+                    }
+                });
+
+                if (timeStr === "07:00") {
+                    const tasksToday = state.tasks.filter(t => t.date === todayStr && !t.done).length;
+                    if (tasksToday > 0) {
+                        sendNotification("Agenda Hari Ini", `Kamu punya ${tasksToday} tugas untuk diselesaikan.`);
+                    }
+                }
+            }, 60000);
+        }
+
+        function sendNotification(title, body) {
+            if (Notification.permission === "granted") {
+                new Notification(title, { 
+                    body: body,
+                    icon: "icon-192.png" 
+                });
+                document.getElementById('alarmSound').play();
+            }
+        }
+
+        // --- Timer Logic ---
+        let timerSeconds = 1500;
+        let timerRunning = false;
+        let timerInt;
+
+        function toggleTimer() {
+            if(timerRunning) {
+                clearInterval(timerInt);
+                document.getElementById('timerToggle').innerText = "Lanjutkan";
+            } else {
+                timerInt = setInterval(() => {
+                    timerSeconds--;
+                    const mins = Math.floor(timerSeconds / 60);
+                    const secs = timerSeconds % 60;
+                    document.getElementById('timerDisplay').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                    if(timerSeconds <= 0) {
+                        clearInterval(timerInt);
+                        sendNotification("Waktu Habis!", "Sesi fokus selesai!");
+                    }
+                }, 1000);
+                document.getElementById('timerToggle').innerText = "Jeda";
+            }
+            timerRunning = !timerRunning;
+        }
+
+        function resetTimer() {
+            clearInterval(timerInt);
+            timerSeconds = 1500;
+            timerRunning = false;
+            document.getElementById('timerDisplay').innerText = "25:00";
+            document.getElementById('timerToggle').innerText = "Mulai Sesi";
+        }
+    </script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("./service-worker.js")
+                    .then((reg) => console.log("Service Worker aktif:", reg.scope))
+                    .catch((err) => console.log("SW error:", err));
+            });
+        }
+    </script>
+</body>
+</html>
